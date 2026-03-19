@@ -1,0 +1,63 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "opensearch-otel.fullname" . }}-dashboards
+  labels:
+    {{- include "opensearch-otel.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dashboards
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "opensearch-otel.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: dashboards
+  template:
+    metadata:
+      labels:
+        {{- include "opensearch-otel.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: dashboards
+    spec:
+      containers:
+        - name: dashboards
+          image: {{ .Values.dashboards.image }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.dashboards.port }}
+          env:
+            - name: OPENSEARCH_HOSTS
+              value: "https://{{ include "opensearch-otel.fullname" . }}-opensearch:{{ .Values.opensearch.port }}"
+            - name: OPENSEARCH_USERNAME
+              value: {{ .Values.opensearch.username | quote }}
+            - name: OPENSEARCH_PASSWORD
+              value: {{ .Values.opensearch.password | quote }}
+            - name: SERVER_SSL_ENABLED
+              value: "false"
+            - name: OPENSEARCH_SSL_CERTIFICATEAUTHORITIES
+              value: /usr/share/opensearch-dashboards/config/certs/ca.crt
+            - name: OPENSEARCH_SSL_VERIFICATIONMODE
+              value: certificate
+          volumeMounts:
+            - name: tls-certs
+              mountPath: /usr/share/opensearch-dashboards/config/certs
+              readOnly: true
+      volumes:
+        - name: tls-certs
+          secret:
+            secretName: {{ .Values.tls.secretName }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "opensearch-otel.fullname" . }}-dashboards
+  labels:
+    {{- include "opensearch-otel.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dashboards
+spec:
+  selector:
+    {{- include "opensearch-otel.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: dashboards
+  ports:
+    - name: http
+      port: {{ .Values.dashboards.port }}
+      targetPort: http

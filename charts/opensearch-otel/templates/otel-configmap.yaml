@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "opensearch-otel.fullname" . }}-otel-config
+  labels:
+    {{- include "opensearch-otel.labels" . | nindent 4 }}
+data:
+  otel-collector-config.yml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: "0.0.0.0:{{ .Values.collector.grpcPort }}"
+          http:
+            endpoint: "0.0.0.0:{{ .Values.collector.httpPort }}"
+
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 512
+        spike_limit_mib: 128
+      batch:
+        send_batch_size: 1000
+        timeout: 10s
+
+    exporters:
+      opensearch/traces:
+        http:
+          endpoint: "https://{{ include "opensearch-otel.fullname" . }}-opensearch:{{ .Values.opensearch.port }}"
+          auth:
+            authenticator: basicauth
+          tls:
+            ca_file: /etc/otel/certs/ca.crt
+            cert_file: /etc/otel/certs/otel-collector.crt
+            key_file: /etc/otel/certs/otel-collector.key
+        logs_index: otel-traces
+      opensearch/metrics:
+        http:
+          endpoint: "https://{{ include "opensearch-otel.fullname" . }}-opensearch:{{ .Values.opensearch.port }}"
+          auth:
+            authenticator: basicauth
+          tls:
+            ca_file: /etc/otel/certs/ca.crt
+            cert_file: /etc/otel/certs/otel-collector.crt
+            key_file: /etc/otel/certs/otel-collector.key
+        logs_index: otel-metrics
+      opensearch/logs:
+        http:
+          endpoint: "https://{{ include "opensearch-otel.fullname" . }}-opensearch:{{ .Values.opensearch.port }}"
+          auth:
+            authenticator: basicauth
+          tls:
+            ca_file: /etc/otel/certs/ca.crt
+            cert_file: /etc/otel/certs/otel-collector.crt
+            key_file: /etc/otel/certs/otel-collector.key
+        logs_index: otel-logs
+
+    extensions:
+      basicauth:
+        client_auth:
+          username: {{ .Values.opensearch.username }}
+          password: {{ .Values.opensearch.password }}
+
+    service:
+      extensions: [basicauth]
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [opensearch/traces]
+        metrics:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [opensearch/metrics]
+        logs:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [opensearch/logs]
