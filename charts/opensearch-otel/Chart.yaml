@@ -1,0 +1,6 @@
+apiVersion: v2
+name: opensearch-otel
+description: A Helm chart deploying OpenSearch, OpenSearch Dashboards, and an OpenTelemetry Collector with mutual TLS
+type: application
+version: 0.1.0
+appVersion: "2.13.0"

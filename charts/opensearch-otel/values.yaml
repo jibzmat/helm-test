@@ -1,0 +1,19 @@
+opensearch:
+  image: opensearchproject/opensearch:2.13.0
+  # Override username and password in production via --set or a values file.
+  username: admin
+  password: admin
+  port: 9200
+  transportPort: 9300
+
+dashboards:
+  image: opensearchproject/opensearch-dashboards:2.13.0
+  port: 5601
+
+collector:
+  image: otel/opentelemetry-collector-contrib:0.97.0
+  grpcPort: 4317
+  httpPort: 4318
+
+tls:
+  secretName: opensearch-tls

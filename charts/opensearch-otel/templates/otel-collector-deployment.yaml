@@ -1,0 +1,63 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "opensearch-otel.fullname" . }}-otel-collector
+  labels:
+    {{- include "opensearch-otel.labels" . | nindent 4 }}
+    app.kubernetes.io/component: otel-collector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "opensearch-otel.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: otel-collector
+  template:
+    metadata:
+      labels:
+        {{- include "opensearch-otel.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: otel-collector
+    spec:
+      containers:
+        - name: otel-collector
+          image: {{ .Values.collector.image }}
+          args:
+            - "--config=/etc/otel/otel-collector-config.yml"
+          ports:
+            - name: otlp-grpc
+              containerPort: {{ .Values.collector.grpcPort }}
+            - name: otlp-http
+              containerPort: {{ .Values.collector.httpPort }}
+          volumeMounts:
+            - name: otel-config
+              mountPath: /etc/otel/otel-collector-config.yml
+              subPath: otel-collector-config.yml
+            - name: tls-certs
+              mountPath: /etc/otel/certs
+              readOnly: true
+      volumes:
+        - name: otel-config
+          configMap:
+            name: {{ include "opensearch-otel.fullname" . }}-otel-config
+        - name: tls-certs
+          secret:
+            secretName: {{ .Values.tls.secretName }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "opensearch-otel.fullname" . }}-otel-collector
+  labels:
+    {{- include "opensearch-otel.labels" . | nindent 4 }}
+    app.kubernetes.io/component: otel-collector
+spec:
+  selector:
+    {{- include "opensearch-otel.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: otel-collector
+  ports:
+    - name: otlp-grpc
+      port: {{ .Values.collector.grpcPort }}
+      targetPort: otlp-grpc
+    - name: otlp-http
+      port: {{ .Values.collector.httpPort }}
+      targetPort: otlp-http
